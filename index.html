@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Operation Exit — Countdown</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0A0E14;
+    --panel: #121826;
+    --panel-2: #171F30;
+    --line: #242E42;
+    --text: #EBEAE5;
+    --text-dim: #8A93A6;
+    --amber: #FF9F1C;
+    --amber-dim: #7A5417;
+    --cyan: #45D5C6;
+    --cyan-dim: #1E4842;
+    --red: #E7495B;
+    --red-dim: #4A1C22;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{background:var(--bg);}
+  body{
+    background:
+      radial-gradient(1100px 500px at 15% -10%, rgba(255,159,28,0.08), transparent 60%),
+      radial-gradient(900px 500px at 100% 10%, rgba(69,213,198,0.06), transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Space Grotesk', sans-serif;
+    min-height:100vh;
+    padding: clamp(20px, 5vw, 64px) clamp(16px, 6vw, 0px);
+  }
+  .wrap{ max-width: 860px; margin: 0 auto; }
+
+  /* ---------- top strip ---------- */
+  .topline{
+    display:flex; justify-content:space-between; align-items:baseline;
+    flex-wrap:wrap; gap:8px;
+    padding-bottom:18px; margin-bottom:28px;
+    border-bottom:1px solid var(--line);
+    font-family:'JetBrains Mono', monospace;
+    font-size:12.5px; color:var(--text-dim); letter-spacing:0.03em;
+  }
+  .topline b{ color:var(--amber); font-weight:600; }
+  .topline .clock{ color:var(--text); }
+
+  /* ---------- hero ---------- */
+  .hero{ margin-bottom:40px; }
+  .hero-label{
+    font-family:'JetBrains Mono', monospace;
+    font-size:13px; color:var(--cyan); letter-spacing:0.04em;
+    margin-bottom:10px;
+  }
+  .hero h1{
+    font-size:clamp(28px, 5.4vw, 46px);
+    line-height:1.08;
+    font-weight:700;
+    letter-spacing:-0.01em;
+    margin-bottom:16px;
+    max-width: 14ch;
+  }
+  .hero p.tagline{
+    color:var(--text-dim); font-size:16px; max-width:52ch; margin-bottom:28px;
+  }
+  .countdown{
+    display:flex; gap: clamp(10px,3vw,22px); flex-wrap:wrap;
+  }
+  .cd-unit{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding: 16px clamp(14px,3vw,22px);
+    min-width:78px;
+    text-align:center;
+  }
+  .cd-unit .num{
+    font-family:'JetBrains Mono', monospace;
+    font-size:clamp(26px, 5vw, 38px);
+    font-weight:700;
+    color:var(--amber);
+    font-variant-numeric: tabular-nums;
+  }
+  .cd-unit .lbl{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px; color:var(--text-dim); margin-top:4px; letter-spacing:0.05em;
+  }
+
+  /* ---------- mission bar ---------- */
+  .mission{ margin: 44px 0 48px; }
+  .mission-head{
+    display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;
+    font-size:13px; color:var(--text-dim);
+  }
+  .mission-head .pct{
+    font-family:'JetBrains Mono', monospace; color:var(--text); font-size:13px;
+  }
+  .track{
+    position:relative; height:8px; background:var(--panel-2);
+    border-radius:99px; overflow:visible; border:1px solid var(--line);
+  }
+  .fill{
+    position:absolute; left:0; top:0; bottom:0;
+    background: linear-gradient(90deg, var(--cyan), var(--amber));
+    border-radius:99px;
+    width:0%;
+    transition: width 1s ease-out;
+  }
+  .tick{
+    position:absolute; top:-5px; width:2px; height:18px;
+    background:var(--line);
+  }
+  .tick.achieved{ background:var(--cyan); }
+  .tick.danger{ background:var(--red); }
+
+  /* ---------- stages ---------- */
+  .stages{ position:relative; }
+  .stage{
+    position:relative;
+    display:grid;
+    grid-template-columns:26px 1fr;
+    gap:18px;
+    padding-bottom:34px;
+    opacity:0;
+    transform:translateY(10px);
+    animation: rise 0.5s ease-out forwards;
+  }
+  .stage:last-child{ padding-bottom:0; }
+  @keyframes rise{ to{ opacity:1; transform:translateY(0); } }
+
+  .rail{ position:relative; display:flex; flex-direction:column; align-items:center; }
+  .node{
+    width:16px; height:16px; border-radius:50%;
+    border:2px solid var(--line);
+    background:var(--panel);
+    z-index:2; margin-top:4px;
+    flex-shrink:0;
+  }
+  .node.achieved{ background:var(--cyan); border-color:var(--cyan); box-shadow:0 0 0 4px var(--cyan-dim); }
+  .node.next{ background:var(--amber); border-color:var(--amber); box-shadow:0 0 0 4px var(--amber-dim); animation: pulse 2s infinite; }
+  .node.danger-pending{ border-color:var(--red); }
+  @keyframes pulse{
+    0%,100%{ box-shadow:0 0 0 4px var(--amber-dim); }
+    50%{ box-shadow:0 0 0 8px transparent; }
+  }
+  .thread{
+    flex:1; width:2px; background:var(--line); margin-top:2px;
+  }
+  .stage:last-child .thread{ display:none; }
+
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:18px 20px;
+  }
+  .card.danger{ border-color: rgba(231,73,91,0.35); }
+  .card.next{ border-color: rgba(255,159,28,0.45); background:var(--panel-2); }
+
+  .card-top{
+    display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;
+    margin-bottom:8px;
+  }
+  .card-title{ font-size:17px; font-weight:600; }
+  .card-date{
+    font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--text-dim);
+    margin-top:2px;
+  }
+  .status{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px; letter-spacing:0.05em; font-weight:600;
+    padding:4px 9px; border-radius:99px; white-space:nowrap;
+  }
+  .status.achieved{ background:var(--cyan-dim); color:var(--cyan); }
+  .status.next{ background:var(--amber-dim); color:var(--amber); }
+  .status.upcoming{ background:var(--panel-2); color:var(--text-dim); border:1px solid var(--line); }
+  .status.danger{ background:var(--red-dim); color:var(--red); }
+
+  .card-tag{ color:var(--text-dim); font-size:14px; margin-bottom:12px; max-width:56ch; }
+
+  .card-bottom{ display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap; }
+  .mini-count{
+    font-family:'JetBrains Mono', monospace; font-size:14px; color:var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .mini-count b{ color:var(--amber); }
+  .card.danger .mini-count b{ color:var(--red); }
+  .card.achieved .mini-count b{ color:var(--cyan); }
+
+  .mini-track{ flex:1; min-width:100px; height:5px; background:var(--panel-2); border-radius:99px; overflow:hidden; }
+  .mini-fill{ height:100%; background:var(--cyan); border-radius:99px; width:0%; transition:width 1s ease-out;}
+  .card.next .mini-fill{ background:var(--amber); }
+  .card.danger .mini-fill{ background:var(--red); }
+
+  /* ---------- footer stats ---------- */
+  .stats{
+    margin-top:56px; padding-top:24px; border-top:1px solid var(--line);
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(140px,1fr)); gap:18px;
+  }
+  .stat b{
+    display:block; font-family:'JetBrains Mono', monospace;
+    font-size:22px; color:var(--text); font-variant-numeric: tabular-nums;
+  }
+  .stat span{ font-size:12px; color:var(--text-dim); }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation:none !important; transition:none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topline">
+    <span>OPERATION EXIT <b>·</b> JOINED 02 MAY 2022</span>
+    <span class="clock" id="liveClock">—</span>
+  </div>
+
+  <div class="hero">
+    <div class="hero-label" id="heroLabel">NEXT GATE</div>
+    <h1 id="heroTitle">Loading sequence…</h1>
+    <p class="tagline" id="heroTag"></p>
+    <div class="countdown" id="heroCountdown"></div>
+  </div>
+
+  <div class="mission">
+    <div class="mission-head">
+      <span>MISSION PROGRESS · JOIN DATE → 31 MAR 2027</span>
+      <span class="pct" id="missionPct">0%</span>
+    </div>
+    <div class="track" id="missionTrack">
+      <div class="fill" id="missionFill"></div>
+    </div>
+  </div>
+
+  <div class="stages" id="stages"></div>
+
+  <div class="stats" id="footerStats"></div>
+
+</div>
+
+<script>
+  const JOIN = new Date('2022-05-02T00:00:00');
+
+  const MILESTONES = [
+    {
+      date: '2026-09-10T00:00:00',
+      title: 'Notice period opens',
+      tag: 'Resign now and your notice period carries you past the gratuity floor.',
+      kind: 'gate'
+    },
+    {
+      date: '2026-10-30T00:00:00',
+      title: 'Leave encashment danger zone',
+      tag: 'Cross this without leaving and unused leave stops converting to cash.',
+      kind: 'danger'
+    },
+    {
+      date: '2026-11-08T00:00:00',
+      title: 'Gratuity unlocked',
+      tag: 'Full gratuity eligibility, whenever you walk out after this.',
+      kind: 'gate'
+    },
+    {
+      date: '2026-12-31T00:00:00',
+      title: 'The year closes',
+      tag: "Still here after today? That's the year, gone.",
+      kind: 'danger'
+    },
+    {
+      date: '2027-03-31T00:00:00',
+      title: 'Hard stop',
+      tag: 'No more extensions available. This is the wall.',
+      kind: 'critical'
+    }
+  ];
+
+  const FINAL = new Date(MILESTONES[MILESTONES.length - 1].date);
+  const MS_DAY = 86400000;
+
+  function pad(n){ return String(n).padStart(2,'0'); }
+
+  function diffParts(ms){
+    const sign = ms < 0 ? -1 : 1;
+    ms = Math.abs(ms);
+    const d = Math.floor(ms / MS_DAY);
+    const h = Math.floor((ms % MS_DAY) / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    return {sign, d, h, m, s};
+  }
+
+  function buildStages(){
+    const container = document.getElementById('stages');
+    container.innerHTML = '';
+    const now = new Date();
+    const nextIndex = MILESTONES.findIndex(m => new Date(m.date) > now);
+
+    MILESTONES.forEach((m, i) => {
+      const date = new Date(m.date);
+      const achieved = date <= now;
+      const isNext = i === nextIndex;
+      const isDanger = m.kind === 'danger' || m.kind === 'critical';
+
+      const stage = document.createElement('div');
+      stage.className = 'stage';
+      stage.style.animationDelay = (i * 0.09) + 's';
+
+      const statusClass = achieved ? 'achieved' : (isNext ? 'next' : (isDanger ? 'danger' : 'upcoming'));
+      const statusText = achieved ? 'ACHIEVED' : (isNext ? 'NEXT GATE' : (isDanger ? 'AT RISK' : 'UPCOMING'));
+
+      const cardClass = achieved ? 'achieved' : (isNext ? 'next' : (isDanger ? 'danger' : ''));
+
+      const rangeStart = i === 0 ? JOIN : new Date(MILESTONES[i-1].date);
+      const rangeTotal = date - rangeStart;
+      const rangeElapsed = Math.min(Math.max(now - rangeStart, 0), rangeTotal);
+      const rangePct = rangeTotal > 0 ? Math.round((rangeElapsed / rangeTotal) * 100) : 100;
+
+      let countHtml;
+      if (achieved){
+        const p = diffParts(now - date);
+        countHtml = `<span class="mini-count">cleared <b>${p.d}</b> day${p.d===1?'':'s'} ago</span>`;
+      } else {
+        const p = diffParts(date - now);
+        countHtml = `<span class="mini-count">T-minus <b>${p.d}</b>d ${pad(p.h)}h ${pad(p.m)}m</span>`;
+      }
+
+      stage.innerHTML = `
+        <div class="rail">
+          <div class="node ${achieved ? 'achieved' : isNext ? 'next' : ''} ${isDanger && !achieved ? 'danger-pending' : ''}"></div>
+          <div class="thread"></div>
+        </div>
+        <div class="card ${cardClass}">
+          <div class="card-top">
+            <div>
+              <div class="card-title">${m.title}</div>
+              <div class="card-date">${date.toLocaleDateString('en-GB', { day:'2-digit', month:'long', year:'numeric' })}</div>
+            </div>
+            <div class="status ${statusClass}">${statusText}</div>
+          </div>
+          <div class="card-tag">${m.tag}</div>
+          <div class="card-bottom">
+            ${countHtml}
+            <div class="mini-track"><div class="mini-fill" style="width:${achieved ? 100 : rangePct}%"></div></div>
+          </div>
+        </div>
+      `;
+      container.appendChild(stage);
+    });
+
+    return nextIndex;
+  }
+
+  function updateHero(nextIndex){
+    const now = new Date();
+    const label = document.getElementById('heroLabel');
+    const title = document.getElementById('heroTitle');
+    const tag = document.getElementById('heroTag');
+    const cd = document.getElementById('heroCountdown');
+
+    if (nextIndex === -1){
+      label.textContent = 'MISSION STATUS';
+      title.textContent = "You're past the wall.";
+      tag.textContent = 'Every date on the list has come and gone. Whatever happens next, it happens on your terms now.';
+      cd.innerHTML = '';
+      return;
+    }
+
+    const m = MILESTONES[nextIndex];
+    const date = new Date(m.date);
+    const p = diffParts(date - now);
+
+    label.textContent = 'NEXT GATE';
+    title.textContent = m.title;
+    tag.textContent = m.tag;
+
+    cd.innerHTML = `
+      <div class="cd-unit"><div class="num">${p.d}</div><div class="lbl">DAYS</div></div>
+      <div class="cd-unit"><div class="num">${pad(p.h)}</div><div class="lbl">HRS</div></div>
+      <div class="cd-unit"><div class="num">${pad(p.m)}</div><div class="lbl">MIN</div></div>
+      <div class="cd-unit"><div class="num">${pad(p.s)}</div><div class="lbl">SEC</div></div>
+    `;
+  }
+
+  function updateMissionBar(){
+    const now = new Date();
+    const total = FINAL - JOIN;
+    const elapsed = Math.min(Math.max(now - JOIN, 0), total);
+    const pct = (elapsed / total) * 100;
+    document.getElementById('missionFill').style.width = pct + '%';
+    document.getElementById('missionPct').textContent = pct.toFixed(1) + '%';
+
+    const track = document.getElementById('missionTrack');
+    track.querySelectorAll('.tick').forEach(t => t.remove());
+    MILESTONES.forEach(m => {
+      const d = new Date(m.date);
+      const left = ((d - JOIN) / total) * 100;
+      const tick = document.createElement('div');
+      const isDanger = m.kind === 'danger' || m.kind === 'critical';
+      tick.className = 'tick' + (d <= now ? ' achieved' : (isDanger ? ' danger' : ''));
+      tick.style.left = 'calc(' + left + '% - 1px)';
+      track.appendChild(tick);
+    });
+  }
+
+  function updateClock(){
+    const now = new Date();
+    const served = diffParts(now - JOIN);
+    document.getElementById('liveClock').textContent =
+      `DAY ${served.d} · ${pad(served.h)}:${pad(served.m)}:${pad(served.s)}`;
+  }
+
+  function updateFooterStats(nextIndex){
+    const now = new Date();
+    const servedDays = Math.floor((now - JOIN) / MS_DAY);
+    const gratuityMilestone = MILESTONES.find(m => m.title === 'Gratuity unlocked');
+    const gDate = new Date(gratuityMilestone.date);
+    const daysToGratuity = Math.max(0, Math.ceil((gDate - now) / MS_DAY));
+    const totalToWall = Math.ceil((FINAL - JOIN) / MS_DAY);
+    const daysToWall = Math.max(0, Math.ceil((FINAL - now) / MS_DAY));
+    const yearsServed = ((now - JOIN) / (MS_DAY * 365.25)).toFixed(2);
+    const gatesCleared = MILESTONES.filter(m => new Date(m.date) <= now).length;
+
+    const stats = [
+      { v: servedDays.toLocaleString(), l: 'Days served' },
+      { v: yearsServed, l: 'Years at company' },
+      { v: `${gatesCleared} / ${MILESTONES.length}`, l: 'Gates cleared' },
+      { v: daysToGratuity, l: 'Days to gratuity' },
+      { v: daysToWall, l: 'Days to hard stop' },
+    ];
+
+    document.getElementById('footerStats').innerHTML = stats.map(s =>
+      `<div class="stat"><b>${s.v}</b><span>${s.l}</span></div>`
+    ).join('');
+  }
+
+  function tick(){
+    updateClock();
+    updateMissionBar();
+    const nextIndex = MILESTONES.findIndex(m => new Date(m.date) > new Date());
+    updateHero(nextIndex);
+    updateFooterStats(nextIndex);
+  }
+
+  buildStages();
+  tick();
+  setInterval(() => {
+    updateClock();
+    const now = new Date();
+    const nextIndex = MILESTONES.findIndex(m => new Date(m.date) > now);
+    updateHero(nextIndex);
+  }, 1000);
+
+  // rebuild stage cards + mission bar once a minute (progress bars, achieved states)
+  setInterval(() => {
+    buildStages();
+    updateMissionBar();
+    const nextIndex = MILESTONES.findIndex(m => new Date(m.date) > new Date());
+    updateFooterStats(nextIndex);
+  }, 60000);
+
+  updateMissionBar();
+  updateFooterStats(MILESTONES.findIndex(m => new Date(m.date) > new Date()));
+</script>
+</body>
+</html>
