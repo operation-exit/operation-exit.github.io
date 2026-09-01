@@ -2,7 +2,7 @@
   "name": "Operation Exit",
   "short_name": "Exit",
   "description": "Countdown to career-transition milestones.",
-  "start_url": "./operation-exit.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
