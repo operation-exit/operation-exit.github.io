@@ -155,9 +155,23 @@
     border:1px solid var(--line);
     border-radius:12px;
     padding:18px 20px;
+    cursor:pointer;
+    transition: border-color 0.15s ease, transform 0.15s ease, background 0.15s ease;
   }
+  .card:hover, .card:focus-visible{
+    border-color: rgba(235,234,229,0.3);
+    transform: translateY(-2px);
+  }
+  .card:focus-visible{ outline: 2px solid var(--amber); outline-offset:2px; }
   .card.danger{ border-color: rgba(231,73,91,0.35); }
+  .card.danger:hover{ border-color: rgba(231,73,91,0.6); }
   .card.next{ border-color: rgba(255,159,28,0.45); background:var(--panel-2); }
+  .card.next:hover{ border-color: rgba(255,159,28,0.7); }
+  .card-hint{
+    font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--text-dim);
+    opacity:0; transition:opacity 0.15s ease; margin-top:10px; letter-spacing:0.03em;
+  }
+  .card:hover .card-hint{ opacity:0.75; }
 
   .card-top{
     display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;
@@ -193,6 +207,63 @@
   .mini-fill{ height:100%; background:var(--cyan); border-radius:99px; width:0%; transition:width 1s ease-out;}
   .card.next .mini-fill{ background:var(--amber); }
   .card.danger .mini-fill{ background:var(--red); }
+
+  .card-meta{
+    display:flex; justify-content:space-between; margin-top:9px;
+    font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--text-dim);
+  }
+
+  /* ---------- modal ---------- */
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(5,7,11,0.72);
+    backdrop-filter: blur(3px);
+    display:flex; align-items:center; justify-content:center;
+    padding:20px;
+    opacity:0; pointer-events:none;
+    transition:opacity 0.18s ease;
+    z-index:50;
+  }
+  .modal-backdrop.open{ opacity:1; pointer-events:auto; }
+  .modal{
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:16px;
+    max-width:480px; width:100%;
+    max-height:88vh; overflow-y:auto;
+    padding:26px 26px 24px;
+    transform:translateY(14px) scale(0.98);
+    transition:transform 0.18s ease;
+  }
+  .modal-backdrop.open .modal{ transform:translateY(0) scale(1); }
+  .modal-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:4px; }
+  .modal-close{
+    background:none; border:1px solid var(--line); color:var(--text-dim);
+    width:30px; height:30px; border-radius:8px; font-size:16px; line-height:1;
+    cursor:pointer; flex-shrink:0;
+  }
+  .modal-close:hover{ color:var(--text); border-color: rgba(235,234,229,0.3); }
+  .modal-eyebrow{ font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--cyan); letter-spacing:0.04em; margin-bottom:8px; }
+  .modal h2{ font-size:23px; font-weight:700; margin-bottom:6px; max-width:22ch; }
+  .modal-date{ font-family:'JetBrains Mono', monospace; font-size:13px; color:var(--text-dim); margin-bottom:16px; }
+  .modal-tag{ color:var(--text-dim); font-size:14.5px; margin-bottom:22px; }
+
+  .modal-countdown{ display:flex; gap:10px; margin-bottom:22px; flex-wrap:wrap; }
+  .modal-countdown .cd-unit{ min-width:64px; padding:12px 14px; }
+  .modal-countdown .cd-unit .num{ font-size:24px; }
+
+  .modal-progress{ margin-bottom:22px; }
+  .modal-progress-head{ display:flex; justify-content:space-between; font-size:12.5px; color:var(--text-dim); margin-bottom:8px; }
+  .modal-progress-head b{ color:var(--text); font-family:'JetBrains Mono', monospace; }
+
+  .modal-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:14px 18px;
+    padding-top:18px; border-top:1px solid var(--line);
+  }
+  .modal-stat b{
+    display:block; font-family:'JetBrains Mono', monospace; font-size:19px;
+    color:var(--text); font-variant-numeric: tabular-nums; margin-bottom:2px;
+  }
+  .modal-stat span{ font-size:11.5px; color:var(--text-dim); }
 
   /* ---------- footer stats ---------- */
   .stats{
@@ -239,6 +310,32 @@
 
   <div class="stats" id="footerStats"></div>
 
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-top">
+      <div>
+        <div class="modal-eyebrow" id="modalEyebrow">GATE DETAIL</div>
+      </div>
+      <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+    </div>
+    <h2 id="modalTitle"></h2>
+    <div class="modal-date" id="modalDate"></div>
+    <p class="modal-tag" id="modalTag"></p>
+
+    <div class="modal-countdown" id="modalCountdown"></div>
+
+    <div class="modal-progress">
+      <div class="modal-progress-head">
+        <span>Tenure progress toward this date</span>
+        <b id="modalPct">0%</b>
+      </div>
+      <div class="track"><div class="fill" id="modalFill" style="background:var(--cyan)"></div></div>
+    </div>
+
+    <div class="modal-grid" id="modalGrid"></div>
+  </div>
 </div>
 
 <script>
@@ -318,6 +415,9 @@
       const rangeElapsed = Math.min(Math.max(now - rangeStart, 0), rangeTotal);
       const rangePct = rangeTotal > 0 ? Math.round((rangeElapsed / rangeTotal) * 100) : 100;
 
+      const targetDays = Math.round((date - JOIN) / MS_DAY);
+      const tenurePct = Math.min(100, ((now - JOIN) / (date - JOIN)) * 100);
+
       let countHtml;
       if (achieved){
         const p = diffParts(now - date);
@@ -332,7 +432,7 @@
           <div class="node ${achieved ? 'achieved' : isNext ? 'next' : ''} ${isDanger && !achieved ? 'danger-pending' : ''}"></div>
           <div class="thread"></div>
         </div>
-        <div class="card ${cardClass}">
+        <div class="card ${cardClass}" data-index="${i}" tabindex="0" role="button" aria-haspopup="dialog">
           <div class="card-top">
             <div>
               <div class="card-title">${m.title}</div>
@@ -345,9 +445,21 @@
             ${countHtml}
             <div class="mini-track"><div class="mini-fill" style="width:${achieved ? 100 : rangePct}%"></div></div>
           </div>
+          <div class="card-meta">
+            <span>${achieved ? '100' : tenurePct.toFixed(4)}% completed</span>
+            <span>Target: ${targetDays} days total</span>
+          </div>
+          <div class="card-hint">TAP FOR DETAILS →</div>
         </div>
       `;
       container.appendChild(stage);
+    });
+
+    document.querySelectorAll('.card').forEach(card => {
+      card.addEventListener('click', () => openModal(parseInt(card.dataset.index, 10)));
+      card.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openModal(parseInt(card.dataset.index, 10)); }
+      });
     });
 
     return nextIndex;
@@ -435,6 +547,89 @@
       `<div class="stat"><b>${s.v}</b><span>${s.l}</span></div>`
     ).join('');
   }
+
+  let modalIndex = null;
+  let modalInterval = null;
+
+  function renderModal(){
+    if (modalIndex === null) return;
+    const m = MILESTONES[modalIndex];
+    const date = new Date(m.date);
+    const now = new Date();
+    const achieved = date <= now;
+    const isDanger = m.kind === 'danger' || m.kind === 'critical';
+    const nextIndex = MILESTONES.findIndex(x => new Date(x.date) > now);
+    const isNext = modalIndex === nextIndex;
+
+    document.getElementById('modalEyebrow').textContent =
+      achieved ? 'CLEARED' : (isNext ? 'NEXT GATE' : (isDanger ? 'AT RISK' : 'UPCOMING GATE'));
+    document.getElementById('modalTitle').textContent = m.title;
+    document.getElementById('modalDate').textContent =
+      date.toLocaleDateString('en-GB', { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
+    document.getElementById('modalTag').textContent = m.tag;
+
+    const cd = document.getElementById('modalCountdown');
+    if (achieved){
+      const p = diffParts(now - date);
+      cd.innerHTML = `
+        <div class="cd-unit"><div class="num">${p.d}</div><div class="lbl">DAYS AGO</div></div>
+        <div class="cd-unit"><div class="num">${pad(p.h)}</div><div class="lbl">HRS</div></div>
+        <div class="cd-unit"><div class="num">${pad(p.m)}</div><div class="lbl">MIN</div></div>
+      `;
+    } else {
+      const p = diffParts(date - now);
+      cd.innerHTML = `
+        <div class="cd-unit"><div class="num">${p.d}</div><div class="lbl">DAYS</div></div>
+        <div class="cd-unit"><div class="num">${pad(p.h)}</div><div class="lbl">HRS</div></div>
+        <div class="cd-unit"><div class="num">${pad(p.m)}</div><div class="lbl">MIN</div></div>
+        <div class="cd-unit"><div class="num">${pad(p.s)}</div><div class="lbl">SEC</div></div>
+      `;
+    }
+
+    const targetDays = Math.round((date - JOIN) / MS_DAY);
+    const tenurePct = Math.min(100, ((now - JOIN) / (date - JOIN)) * 100);
+    document.getElementById('modalPct').textContent = (achieved ? 100 : tenurePct).toFixed(2) + '%';
+    document.getElementById('modalFill').style.width = (achieved ? 100 : tenurePct) + '%';
+    document.getElementById('modalFill').style.background =
+      isDanger ? 'var(--red)' : (achieved ? 'var(--cyan)' : 'var(--amber)');
+
+    const servedNow = Math.floor((now - JOIN) / MS_DAY);
+    const rangeStart = modalIndex === 0 ? JOIN : new Date(MILESTONES[modalIndex - 1].date);
+    const stageLenDays = Math.round((date - rangeStart) / MS_DAY);
+    const weekNum = Math.ceil(targetDays / 7);
+
+    const grid = document.getElementById('modalGrid');
+    grid.innerHTML = `
+      <div class="modal-stat"><b>${servedNow.toLocaleString()}</b><span>Days served so far</span></div>
+      <div class="modal-stat"><b>${targetDays.toLocaleString()}</b><span>Total days at that point</span></div>
+      <div class="modal-stat"><b>${stageLenDays.toLocaleString()}</b><span>Days in this stage${modalIndex === 0 ? '' : ' (since prior gate)'}</span></div>
+      <div class="modal-stat"><b>~week ${weekNum}</b><span>Of employment</span></div>
+    `;
+  }
+
+  function openModal(i){
+    modalIndex = i;
+    renderModal();
+    document.getElementById('modalBackdrop').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    if (modalInterval) clearInterval(modalInterval);
+    modalInterval = setInterval(renderModal, 1000);
+  }
+
+  function closeModal(){
+    document.getElementById('modalBackdrop').classList.remove('open');
+    document.body.style.overflow = '';
+    if (modalInterval) clearInterval(modalInterval);
+    modalIndex = null;
+  }
+
+  document.getElementById('modalClose').addEventListener('click', closeModal);
+  document.getElementById('modalBackdrop').addEventListener('click', e => {
+    if (e.target.id === 'modalBackdrop') closeModal();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+  });
 
   function tick(){
     updateClock();
